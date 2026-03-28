@@ -391,6 +391,11 @@
           </div>
         </div>
 
+        <div class="field">
+          <label for="companyName">Company Name</label>
+          <input type="text" id="companyName" placeholder="Google, Microsoft, etc.">
+        </div>
+
         <div class="field" id="jdField">
           <label for="jd">Job Description</label>
           <textarea id="jd" class="jd-input" placeholder="Paste the full job description here..."></textarea>
@@ -580,11 +585,11 @@ async function callGroq(messages) {
   return data.choices[0].message.content.trim();
 }
 
-async function generateSubject(jd) {
+async function generateSubject(jd, companyName) {
   if (currentMode === 'ask') {
     return callGroq([
-      { role: 'system', content: 'You generate concise, professional email subject lines.' },
-      { role: 'user', content: 'Generate a concise, professional email subject line for an email inquiring about open job opportunities at a company. Return ONLY the subject line, nothing else.' }
+      { role: 'system', content: 'You generate concise, professional email subject lines for job inquiries.' },
+      { role: 'user', content: 'Generate a concise, professional email subject line for an email inquiring about job openings at ' + companyName + '. Return ONLY the subject line, nothing else.' }
     ]);
   }
   return callGroq([
@@ -594,12 +599,12 @@ async function generateSubject(jd) {
     },
     {
       role: 'user',
-      content: 'Generate a concise, professional email subject line for a job application based on this job description. Return ONLY the subject line, nothing else.\n\nJD: ' + jd
+      content: 'Generate a concise, professional email subject line for a job application at ' + companyName + ' based on this job description. Return ONLY the subject line, nothing else.\n\nJD: ' + jd
     }
   ]);
 }
 
-async function generateBody(hrName, resumeText, jd) {
+async function generateBody(hrName, companyName, resumeText, jd) {
   const applicantName = getConfig('cfgName') || 'the applicant';
 
   if (currentMode === 'ask') {
@@ -607,7 +612,7 @@ async function generateBody(hrName, resumeText, jd) {
       { role: 'system', content: 'You are a professional job inquiry assistant. You write concise, personalized cold emails.' },
       {
         role: 'user',
-        content: 'Write a concise, personalized cold email to ' + hrName + ' inquiring about any open positions at their company that match the applicant\'s profile. Use the applicant\'s background from the resume to briefly highlight key skills and experience areas. Express genuine interest in the company. Ask if there are any current or upcoming openings that would be a good fit. Keep it under 200 words. Be professional and specific, not generic. Mention that the resume is attached. Sign off with the applicant\'s name (' + applicantName + ').\n\nResume:\n' + resumeText + '\n\nReturn ONLY the email body. No subject line. No markdown.'
+        content: 'Write a concise, personalized cold email to ' + hrName + ' at ' + companyName + ' inquiring about any open positions that match the applicant\'s profile. Use the applicant\'s background from the resume to briefly highlight key skills and experience areas. Express genuine interest in ' + companyName + '. Ask if there are any current or upcoming openings that would be a good fit. Keep it under 200 words. Be professional and specific, not generic. Mention that the resume is attached. Sign off with the applicant\'s name (' + applicantName + ').\n\nResume:\n' + resumeText + '\n\nReturn ONLY the email body. No subject line. No markdown.'
       }
     ]);
   }
@@ -619,7 +624,7 @@ async function generateBody(hrName, resumeText, jd) {
     },
     {
       role: 'user',
-      content: 'Write a concise, personalized cold email applying for this role. Address it to ' + hrName + '. Use the applicant\'s background from the resume to highlight relevant skills. Keep it under 200 words. Be specific, not generic. Mention that the resume is attached. Sign off with the applicant\'s name (' + applicantName + ').\n\nResume:\n' + resumeText + '\n\nJob Description:\n' + jd + '\n\nReturn ONLY the email body. No subject line. No markdown.'
+      content: 'Write a concise, personalized cold email applying for this role at ' + companyName + '. Address it to ' + hrName + '. Use the applicant\'s background from the resume to highlight relevant skills. Keep it under 200 words. Be specific, not generic. Mention that the resume is attached. Sign off with the applicant\'s name (' + applicantName + ').\n\nResume:\n' + resumeText + '\n\nJob Description:\n' + jd + '\n\nReturn ONLY the email body. No subject line. No markdown.'
     }
   ]);
 }
@@ -636,10 +641,12 @@ async function generateEmail() {
   // Validate inputs
   const hrName = document.getElementById('hrName').value.trim();
   const hrEmail = document.getElementById('hrEmail').value.trim();
+  const companyName = document.getElementById('companyName').value.trim();
   const jd = document.getElementById('jd').value.trim();
 
   if (!hrName) { showToast('Please enter the HR name', 'error'); return; }
   if (!hrEmail) { showToast('Please enter the HR email', 'error'); return; }
+  if (!companyName) { showToast('Please enter the company name', 'error'); return; }
   if (currentMode === 'apply' && !jd) { showToast('Please paste the job description', 'error'); return; }
   if (!selectedFile) { showToast('Please upload your resume PDF', 'error'); return; }
 
@@ -657,11 +664,11 @@ async function generateEmail() {
 
     // Generate subject
     showSpinner('Generating subject line...');
-    const subject = await generateSubject(jd);
+    const subject = await generateSubject(jd, companyName);
 
     // Generate body
     showSpinner('Generating email body...');
-    const body = await generateBody(hrName, extractedResumeText, jd);
+    const body = await generateBody(hrName, companyName, extractedResumeText, jd);
 
     // Show preview
     document.getElementById('emailSubject').value = subject;
@@ -685,6 +692,7 @@ async function generateEmail() {
 
 async function regenerateEmail() {
   const hrName = document.getElementById('hrName').value.trim();
+  const companyName = document.getElementById('companyName').value.trim();
   const jd = document.getElementById('jd').value.trim();
 
   if (!extractedResumeText) {
@@ -698,10 +706,10 @@ async function regenerateEmail() {
 
   try {
     showSpinner('Regenerating subject...');
-    const subject = await generateSubject(jd);
+    const subject = await generateSubject(jd, companyName);
 
     showSpinner('Regenerating email body...');
-    const body = await generateBody(hrName, extractedResumeText, jd);
+    const body = await generateBody(hrName, companyName, extractedResumeText, jd);
 
     document.getElementById('emailSubject').value = subject;
     document.getElementById('emailBody').value = body;
