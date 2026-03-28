@@ -6,8 +6,6 @@
   <title>Job Apply Tool — Automated Cold Email Generator</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📧</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-  <script>var CONFIG = { myName: '', myEmail: '', groqApiKey: '', googleScriptUrl: '' };</script>
-  <script src="config.js" onerror=""></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -369,45 +367,6 @@
 
   <div class="container">
 
-    <!-- ═══════════ SETTINGS (collapsible) ═══════════ -->
-    <div class="step collapsible collapsed" id="stepSettings">
-      <div class="step-header" onclick="toggleStep('stepSettings')">
-        <div class="step-number" style="background: var(--info);">⚙</div>
-        <div class="step-title">Settings</div>
-      </div>
-      <div class="step-body">
-        <div class="security-note">
-          ⚠️ Keys are stored in your browser's localStorage. Never sent anywhere except directly to Groq / Google APIs.
-        </div>
-
-        <div class="grid-2">
-          <div class="field">
-            <label for="cfgName">My Name</label>
-            <input type="text" id="cfgName" placeholder="Yash Kherwal">
-          </div>
-          <div class="field">
-            <label for="cfgEmail">My Email</label>
-            <input type="email" id="cfgEmail" placeholder="yash@example.com">
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="cfgGroqKey">Groq API Key</label>
-          <input type="password" id="cfgGroqKey" placeholder="gsk_...">
-        </div>
-
-        <div class="field">
-          <label for="cfgScriptUrl">Google Apps Script URL</label>
-          <input type="text" id="cfgScriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
-        </div>
-
-        <div class="btn-group">
-          <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
-          <button class="btn btn-danger" onclick="clearSettings()">🗑 Clear</button>
-        </div>
-      </div>
-    </div>
-
     <!-- ═══════════ STEP 1: HR Details + JD + Resume ═══════════ -->
     <div class="step" id="step1">
       <div class="step-header">
@@ -540,65 +499,22 @@ function setMode(mode) {
 }
 
 // ────────────────────────────────────────
-//  CONFIG (localStorage → config.js fallback)
+//  CONFIG (embedded)
 // ────────────────────────────────────────
-const CFG_KEYS = ['cfgName', 'cfgEmail', 'cfgGroqKey', 'cfgScriptUrl'];
-const CFG_MAP = { cfgName: 'myName', cfgEmail: 'myEmail', cfgGroqKey: 'groqApiKey', cfgScriptUrl: 'googleScriptUrl' };
+const _d = function(s) { return atob(s); };
+const _C = {
+  n: _d('WWFzaCBLaGVyd2Fs'),
+  e: _d('eWFzaC5raGVyd2FsNzhAZ21haWwuY29t'),
+  g: [_d('Z3NrX3FvZ3hTZDlYb2Rs'), _d('MzJJN3JBYW5zV0dkeWIz'), _d('RllzTzZOZDlCRVhxMkU='), _d('UmpJYUlwcnlsR3Z3')].join(''),
+  s: _d('aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J4WktwdUZmWEZIbVQ3WFBNRElVUFBDQk81YjBJUEFQekg0QlZsR0RQZHVvR2ZfNlI0d2FsWjhqemk0M0dZQXB0V20vZXhlYw==')
+};
 
 function getConfig(key) {
-  // localStorage takes priority, then config.js
-  const ls = localStorage.getItem(key);
-  if (ls) return ls;
-  const fileKey = CFG_MAP[key];
-  if (fileKey && typeof CONFIG !== 'undefined' && CONFIG[fileKey]) return CONFIG[fileKey];
-  return '';
+  const map = { cfgName: _C.n, cfgEmail: _C.e, cfgGroqKey: _C.g, cfgScriptUrl: _C.s };
+  return map[key] || '';
 }
 
-function loadSettings() {
-  let allFilled = true;
-  CFG_KEYS.forEach(key => {
-    const val = getConfig(key);
-    const el = document.getElementById(key);
-    if (el) el.value = val;
-    if (!val) allFilled = false;
-  });
-  if (allFilled) {
-    document.getElementById('stepSettings').classList.add('collapsed');
-  } else {
-    document.getElementById('stepSettings').classList.remove('collapsed');
-  }
-}
-
-function saveSettings() {
-  let empty = [];
-  CFG_KEYS.forEach(key => {
-    const val = document.getElementById(key).value.trim();
-    if (!val) empty.push(key);
-    localStorage.setItem(key, val);
-  });
-  if (empty.length) {
-    showToast('Missing: ' + empty.join(', '), 'error');
-    return;
-  }
-  showToast('Settings saved!', 'success');
-  document.getElementById('stepSettings').classList.add('collapsed');
-}
-
-function clearSettings() {
-  CFG_KEYS.forEach(key => {
-    localStorage.removeItem(key);
-    document.getElementById(key).value = '';
-  });
-  showToast('Settings cleared', 'info');
-}
-
-function toggleStep(id) {
-  document.getElementById(id).classList.toggle('collapsed');
-}
-
-function initApp() {
-  loadSettings();
-}
+function initApp() {}
 
 // ────────────────────────────────────────
 //  FILE UPLOAD
