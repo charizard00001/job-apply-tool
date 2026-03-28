@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Apply Tool — Automated Cold Email Generator</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📧</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="config.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-2: #1a1a1a;
+      --border: #2a2a2a;
+      --border-hover: #3a3a3a;
+      --accent: #00ff88;
+      --accent-dim: #00cc6a;
+      --accent-bg: rgba(0, 255, 136, 0.08);
+      --danger: #ff4466;
+      --warning: #ffaa00;
+      --info: #4488ff;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --text-muted: #555;
+      --radius: 8px;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      padding: 2.5rem 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .header h1 {
+      font-family: var(--font-mono);
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      margin-top: 0.4rem;
+    }
+
+    /* ── Container ── */
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 4rem;
+    }
+
+    /* ── Step Card ── */
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .step:hover { border-color: var(--border-hover); }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      cursor: default;
+      user-select: none;
+    }
+    .step-number {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--bg);
+      background: var(--accent);
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-number.completed { background: var(--accent-dim); }
+    .step-title {
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .step-body { padding: 0 1.25rem 1.25rem; }
+
+    /* ── Collapsible ── */
+    .collapsible .step-header { cursor: pointer; }
+    .collapsible .step-header::after {
+      content: '▼';
+      margin-left: auto;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+    }
+    .collapsible.collapsed .step-header::after { transform: rotate(-90deg); }
+    .collapsible.collapsed .step-body { display: none; }
+
+    /* ── Form Elements ── */
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin-bottom: 0.35rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .field { margin-bottom: 1rem; }
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    textarea {
+      width: 100%;
+      padding: 0.7rem 0.85rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: var(--font-body);
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 100px; }
+    textarea.jd-input { min-height: 160px; }
+    textarea.email-body { min-height: 260px; font-size: 0.88rem; line-height: 1.7; }
+
+    /* ── File Upload ── */
+    .file-upload {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .file-upload:hover { border-color: var(--accent); background: var(--accent-bg); }
+    .file-upload.has-file { border-color: var(--accent-dim); background: var(--accent-bg); }
+    .file-upload input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .file-upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .file-upload-text { color: var(--text-dim); font-size: 0.85rem; }
+    .file-upload-name {
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      margin-top: 0.3rem;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.7rem 1.4rem;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-dim); }
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-danger {
+      background: rgba(255, 68, 102, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(255, 68, 102, 0.3);
+    }
+    .btn-danger:hover:not(:disabled) { background: rgba(255, 68, 102, 0.25); }
+    .btn-group { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
+
+    /* ── Info Box ── */
+    .info-box {
+      background: rgba(68, 136, 255, 0.08);
+      border: 1px solid rgba(68, 136, 255, 0.2);
+      border-radius: var(--radius);
+      padding: 1rem;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+      margin-bottom: 1rem;
+    }
+    .info-box strong { color: var(--info); }
+    .info-box code {
+      background: var(--bg);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--accent);
+    }
+
+    .security-note {
+      background: rgba(255, 170, 0, 0.08);
+      border: 1px solid rgba(255, 170, 0, 0.2);
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+      font-size: 0.82rem;
+      color: var(--warning);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Toast ── */
+    .toast-container {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 0.8rem 1.2rem;
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      max-width: 380px;
+      animation: toastIn 0.3s ease-out;
+      pointer-events: auto;
+      word-break: break-word;
+    }
+    .toast.fade-out { animation: toastOut 0.3s ease-in forwards; }
+    .toast-success { background: rgba(0, 255, 136, 0.15); color: var(--accent); border: 1px solid rgba(0, 255, 136, 0.3); }
+    .toast-error { background: rgba(255, 68, 102, 0.15); color: var(--danger); border: 1px solid rgba(255, 68, 102, 0.3); }
+    .toast-info { background: rgba(68, 136, 255, 0.15); color: var(--info); border: 1px solid rgba(68, 136, 255, 0.3); }
+
+    @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+
+    /* ── Spinner Overlay ── */
+    .spinner-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 8000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .spinner-overlay.active { display: flex; }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .spinner-text {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--accent);
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .header h1 { font-size: 1.4rem; }
+      .container { padding: 1rem 0.75rem 3rem; }
+      .toast { max-width: 280px; font-size: 0.78rem; }
+    }
+    @media (max-width: 480px) {
+      .header h1 { font-size: 1.15rem; }
+      .header p { font-size: 0.8rem; }
+      .btn { padding: 0.6rem 1rem; font-size: 0.78rem; }
+      .btn-group { flex-direction: column; }
+      .btn-group .btn { width: 100%; justify-content: center; }
+    }
+
+    /* ── Misc ── */
+    .hidden { display: none !important; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 480px) { .grid-2 { grid-template-columns: 1fr; } }
+    hr.divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+    /* ── Mode Toggle ── */
+    .mode-toggle {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      color: var(--text-dim);
+      border: none;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .mode-btn:first-child { border-right: 1px solid var(--border); }
+    .mode-btn.active {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    .mode-btn:hover:not(.active) {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Spinner Overlay -->
+  <div class="spinner-overlay" id="spinnerOverlay">
+    <div class="spinner"></div>
+    <div class="spinner-text" id="spinnerText">Processing...</div>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>&gt;_ Job Apply Tool</h1>
+    <p>Generate &amp; send tailored cold emails — powered by LLaMA</p>
+  </div>
+
+  <div class="container">
+
+    <!-- ═══════════ STEP 1: HR Details + JD + Resume ═══════════ -->
+    <div class="step" id="step1">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Details &amp; Resume</div>
+      </div>
+      <div class="step-body">
+
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="modeApply" onclick="setMode('apply')">📋 Apply for Open Role</button>
+          <button class="mode-btn" id="modeAsk" onclick="setMode('ask')">🔍 Ask for Openings</button>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="hrName">HR Name</label>
+            <input type="text" id="hrName" placeholder="Jane Smith">
+          </div>
+          <div class="field">
+            <label for="hrEmail">HR Email</label>
+            <input type="email" id="hrEmail" placeholder="hr@company.com">
+          </div>
+        </div>
+
+        <div class="field" id="jdField">
+          <label for="jd">Job Description</label>
+          <textarea id="jd" class="jd-input" placeholder="Paste the full job description here..."></textarea>
+        </div>
+
+        <div class="field">
+          <label>My Resume (PDF)</label>
+          <div class="file-upload" id="fileUploadZone">
+            <input type="file" id="resumeFile" accept=".pdf" onchange="handleFileSelect(event)">
+            <div class="file-upload-icon">📄</div>
+            <div class="file-upload-text">Click or drag to upload your resume PDF</div>
+            <div class="file-upload-name" id="fileName"></div>
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="generateEmail()" id="generateBtn">⚡ Generate Email</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ STEP 2: Email Preview ═══════════ -->
+    <div class="step hidden" id="step2">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Email Preview</div>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <label for="emailSubject">Subject Line</label>
+          <input type="text" id="emailSubject" placeholder="Generated subject...">
+        </div>
+
+        <div class="field">
+          <label for="emailBody">Email Body</label>
+          <textarea id="emailBody" class="email-body" placeholder="Generated email body..."></textarea>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="copyEmail()">📋 Copy Email</button>
+          <button class="btn btn-secondary" onclick="regenerateEmail()">🔄 Regenerate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ STEP 3: Send ═══════════ -->
+    <div class="step hidden" id="step3">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">Send Email</div>
+      </div>
+      <div class="step-body">
+        <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">
+          Review the email above, then hit send. The email will be sent to
+          <strong id="sendToDisplay" style="color: var(--accent);"></strong>
+          with your resume attached.
+        </p>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="sendEmail()">🚀 Send Email</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+/*
+ * ═══════════════════════════════════════════════════════════════
+ *  JOB APPLY TOOL — Client-side cold email generator & sender
+ * ═══════════════════════════════════════════════════════════════
+ *
+ *  EmailJS Template Setup:
+ *  1. Go to emailjs.com → Create a free account
+ *  2. Add a Gmail (or other) email service
+ *  3. Create a new email template with these variables:
+ *       {{to_email}}   — recipient HR email
+ *       {{to_name}}    — recipient HR name
+ *       {{subject}}    — email subject line
+ *       {{message}}    — email body text
+ *       {{from_name}}  — your name (the applicant)
+ *  4. Copy Service ID, Template ID, and Public Key
+ *     into the Settings panel of this app.
+ * ═══════════════════════════════════════════════════════════════
+ */
+
+// ── PDF.js Worker ──
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── State ──
+let extractedResumeText = '';
+let selectedFile = null;
+let resumeBase64 = '';
+let currentMode = 'apply'; // 'apply' or 'ask'
+
+// ────────────────────────────────────────
+//  MODE TOGGLE
+// ────────────────────────────────────────
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('modeApply').classList.toggle('active', mode === 'apply');
+  document.getElementById('modeAsk').classList.toggle('active', mode === 'ask');
+  document.getElementById('jdField').classList.toggle('hidden', mode === 'ask');
+  // Hide preview/send when switching modes
+  document.getElementById('step2').classList.add('hidden');
+  document.getElementById('step3').classList.add('hidden');
+}
+
+// ────────────────────────────────────────
+//  CONFIG (loaded from config.js)
+// ────────────────────────────────────────
+function getConfig(key) {
+  const map = {
+    cfgName: CONFIG.myName,
+    cfgEmail: CONFIG.myEmail,
+    cfgGroqKey: CONFIG.groqApiKey,
+    cfgScriptUrl: CONFIG.googleScriptUrl
+  };
+  return map[key] || '';
+}
+
+function initApp() {
+  // Validate config
+  const missing = [];
+  if (!CONFIG.myName) missing.push('myName');
+  if (!CONFIG.groqApiKey) missing.push('groqApiKey');
+  if (!CONFIG.googleScriptUrl) missing.push('googleScriptUrl');
+  if (missing.length) {
+    showToast('config.js missing: ' + missing.join(', '), 'error');
+  }
+}
+
+// ────────────────────────────────────────
+//  FILE UPLOAD
+// ────────────────────────────────────────
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.type !== 'application/pdf') {
+    showToast('Please upload a PDF file', 'error');
+    e.target.value = '';
+    return;
+  }
+  selectedFile = file;
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileUploadZone').classList.add('has-file');
+}
+
+// ────────────────────────────────────────
+//  PDF PARSING (PDF.js)
+// ────────────────────────────────────────
+async function parsePDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n';
+  }
+  return fullText.trim();
+}
+
+// ────────────────────────────────────────
+//  GROQ API
+// ────────────────────────────────────────
+async function callGroq(messages) {
+  const apiKey = getConfig('cfgGroqKey');
+  if (!apiKey) throw new Error('Groq API key not set. Check Settings.');
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + apiKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 1024
+    })
+  });
+
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Invalid Groq API key. Check your settings.');
+    if (res.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+    const errBody = await res.text();
+    throw new Error('Groq API error (' + res.status + '): ' + errBody);
+  }
+
+  const data = await res.json();
+  return data.choices[0].message.content.trim();
+}
+
+async function generateSubject(jd) {
+  if (currentMode === 'ask') {
+    return callGroq([
+      { role: 'system', content: 'You generate concise, professional email subject lines.' },
+      { role: 'user', content: 'Generate a concise, professional email subject line for an email inquiring about open job opportunities at a company. Return ONLY the subject line, nothing else.' }
+    ]);
+  }
+  return callGroq([
+    {
+      role: 'system',
+      content: 'You generate concise, professional email subject lines for job applications.'
+    },
+    {
+      role: 'user',
+      content: 'Generate a concise, professional email subject line for a job application based on this job description. Return ONLY the subject line, nothing else.\n\nJD: ' + jd
+    }
+  ]);
+}
+
+async function generateBody(hrName, resumeText, jd) {
+  const applicantName = getConfig('cfgName') || 'the applicant';
+
+  if (currentMode === 'ask') {
+    return callGroq([
+      { role: 'system', content: 'You are a professional job inquiry assistant. You write concise, personalized cold emails.' },
+      {
+        role: 'user',
+        content: 'Write a concise, personalized cold email to ' + hrName + ' inquiring about any open positions at their company that match the applicant\'s profile. Use the applicant\'s background from the resume to briefly highlight key skills and experience areas. Express genuine interest in the company. Ask if there are any current or upcoming openings that would be a good fit. Keep it under 200 words. Be professional and specific, not generic. Mention that the resume is attached. Sign off with the applicant\'s name (' + applicantName + ').\n\nResume:\n' + resumeText + '\n\nReturn ONLY the email body. No subject line. No markdown.'
+      }
+    ]);
+  }
+
+  return callGroq([
+    {
+      role: 'system',
+      content: 'You are a professional job application assistant. You write concise, personalized cold emails.'
+    },
+    {
+      role: 'user',
+      content: 'Write a concise, personalized cold email applying for this role. Address it to ' + hrName + '. Use the applicant\'s background from the resume to highlight relevant skills. Keep it under 200 words. Be specific, not generic. Mention that the resume is attached. Sign off with the applicant\'s name (' + applicantName + ').\n\nResume:\n' + resumeText + '\n\nJob Description:\n' + jd + '\n\nReturn ONLY the email body. No subject line. No markdown.'
+    }
+  ]);
+}
+// ────────────────────────────────────────
+//  GENERATE EMAIL (main flow)
+// ────────────────────────────────────────
+async function generateEmail() {
+  // Validate config
+  if (!getConfig('cfgGroqKey')) {
+    showToast('Groq API key missing in config.js', 'error');
+    return;
+  }
+
+  // Validate inputs
+  const hrName = document.getElementById('hrName').value.trim();
+  const hrEmail = document.getElementById('hrEmail').value.trim();
+  const jd = document.getElementById('jd').value.trim();
+
+  if (!hrName) { showToast('Please enter the HR name', 'error'); return; }
+  if (!hrEmail) { showToast('Please enter the HR email', 'error'); return; }
+  if (currentMode === 'apply' && !jd) { showToast('Please paste the job description', 'error'); return; }
+  if (!selectedFile) { showToast('Please upload your resume PDF', 'error'); return; }
+
+  try {
+    // Parse PDF
+    showSpinner('Parsing resume PDF...');
+    extractedResumeText = await parsePDF(selectedFile);
+    if (!extractedResumeText) {
+      throw new Error('Could not extract text from PDF. The file might be image-based. Try a different PDF.');
+    }
+
+    // Convert PDF to base64 for attachment
+    const fileBuffer = await selectedFile.arrayBuffer();
+    resumeBase64 = arrayBufferToBase64(fileBuffer);
+
+    // Generate subject
+    showSpinner('Generating subject line...');
+    const subject = await generateSubject(jd);
+
+    // Generate body
+    showSpinner('Generating email body...');
+    const body = await generateBody(hrName, extractedResumeText, jd);
+
+    // Show preview
+    document.getElementById('emailSubject').value = subject;
+    document.getElementById('emailBody').value = body;
+    document.getElementById('sendToDisplay').textContent = hrName + ' (' + hrEmail + ')';
+
+    document.getElementById('step2').classList.remove('hidden');
+    document.getElementById('step3').classList.remove('hidden');
+
+    hideSpinner();
+    showToast('Email generated successfully!', 'success');
+
+    // Scroll to preview
+    document.getElementById('step2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (err) {
+    hideSpinner();
+    showToast(err.message, 'error');
+  }
+}
+
+async function regenerateEmail() {
+  const hrName = document.getElementById('hrName').value.trim();
+  const jd = document.getElementById('jd').value.trim();
+
+  if (!extractedResumeText) {
+    showToast('No resume text available. Please re-upload your PDF and generate again.', 'error');
+    return;
+  }
+  if (currentMode === 'apply' && !jd) {
+    showToast('Please paste the job description', 'error');
+    return;
+  }
+
+  try {
+    showSpinner('Regenerating subject...');
+    const subject = await generateSubject(jd);
+
+    showSpinner('Regenerating email body...');
+    const body = await generateBody(hrName, extractedResumeText, jd);
+
+    document.getElementById('emailSubject').value = subject;
+    document.getElementById('emailBody').value = body;
+    hideSpinner();
+    showToast('Email regenerated!', 'success');
+  } catch (err) {
+    hideSpinner();
+    showToast(err.message, 'error');
+  }
+}
+
+// ────────────────────────────────────────
+//  COPY EMAIL
+// ────────────────────────────────────────
+async function copyEmail() {
+  const subject = document.getElementById('emailSubject').value;
+  const body = document.getElementById('emailBody').value;
+  const fullEmail = 'Subject: ' + subject + '\n\n' + body;
+  try {
+    await navigator.clipboard.writeText(fullEmail);
+    showToast('Email copied to clipboard!', 'success');
+  } catch {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = fullEmail;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Email copied to clipboard!', 'success');
+  }
+}
+
+// ────────────────────────────────────────
+//  SEND EMAIL (Google Apps Script)
+// ────────────────────────────────────────
+async function sendEmail() {
+  const scriptUrl = getConfig('cfgScriptUrl');
+
+  if (!scriptUrl) {
+    showToast('Google Script URL not configured. Check config.js', 'error');
+    return;
+  }
+
+  const subject = document.getElementById('emailSubject').value.trim();
+  const body = document.getElementById('emailBody').value.trim();
+  if (!subject || !body) {
+    showToast('Email subject and body cannot be empty', 'error');
+    return;
+  }
+
+  const hrName = document.getElementById('hrName').value.trim();
+  const hrEmail = document.getElementById('hrEmail').value.trim();
+  const fromName = getConfig('cfgName');
+
+  if (!confirm('Send this email to ' + hrName + ' (' + hrEmail + ')?')) return;
+
+  try {
+    showSpinner('Sending email...');
+    // Convert plain text to HTML for proper formatting
+    const htmlBody = body.replace(/\n/g, '<br>');
+    const res = await fetch(scriptUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        to_email: hrEmail,
+        subject: subject,
+        message: body,
+        message_html: htmlBody,
+        from_name: fromName,
+        attachment_base64: resumeBase64,
+        attachment_name: selectedFile ? selectedFile.name : 'resume.pdf'
+      })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    hideSpinner();
+    showToast('Email sent successfully to ' + hrEmail + '!', 'success');
+  } catch (err) {
+    hideSpinner();
+    showToast('Email failed: ' + String(err) + '. Check your Google Apps Script deployment.', 'error');
+  }
+}
+
+// ────────────────────────────────────────
+//  UTILS
+// ────────────────────────────────────────
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+// ────────────────────────────────────────
+//  TOAST NOTIFICATIONS
+// ────────────────────────────────────────
+function showToast(message, type) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    toast.addEventListener('animationend', () => toast.remove());
+  }, 4000);
+}
+
+// ────────────────────────────────────────
+//  SPINNER
+// ────────────────────────────────────────
+function showSpinner(text) {
+  document.getElementById('spinnerText').textContent = text || 'Processing...';
+  document.getElementById('spinnerOverlay').classList.add('active');
+}
+
+function hideSpinner() {
+  document.getElementById('spinnerOverlay').classList.remove('active');
+}
+
+// ────────────────────────────────────────
+//  INIT
+// ────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', initApp);
+</script>
+
+<!--
+═══════════════════════════════════════════════════════════════
+HOSTING ON GITHUB PAGES (FREE):
+1. Go to github.com → Create new repository → Name it: job-apply-tool (make it Public)
+2. Upload this index.html file to the repo root
+3. Go to repo Settings → Pages → Source: Deploy from branch → Branch: main → Folder: / (root)
+4. Save → Wait 2-3 minutes → Your app is live at: https://YOUR_USERNAME.github.io/job-apply-tool
+5. Bookmark that URL — open it from phone, laptop, anywhere
+6. To update the app: just replace index.html in the repo and GitHub auto-redeploys
+═══════════════════════════════════════════════════════════════
+-->
+
+</body>
+</html>
